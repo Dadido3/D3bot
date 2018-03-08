@@ -65,7 +65,11 @@ if engine.ActiveGamemode() == "zombiesurvival" then
 		local response = "You self-redeemed. Your current cooldown until next self-redeem is " .. math.ceil(cooldown) .. " seconds."
 		pl:ChatPrint(response)
 		pl:PrintMessage(HUD_PRINTCENTER, response)
-		pl:Redeem()
+		pl:ChangeTeam(TEAM_HUMAN)
+		pl:SetDeaths(0)
+		pl:SetPoints(0)
+		pl:DoHulls()		
+		pl:UnSpectateAndSpawn()
 		pl:StripWeapons()
 		pl:StripAmmo()
 		ulx.giveHumanLoadout(pl)
