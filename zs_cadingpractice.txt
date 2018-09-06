@@ -1,0 +1,13 @@
+1:AreaXMax=511.8,AreaXMin=255.9,AreaYMax=1151.6,AreaYMin=832,X=382.7,Y=980.4,Z=0
+1-2:
+2:AreaXMax=255.6,AreaXMin=0.5,AreaYMax=1151.8,AreaYMin=653,X=121.5,Y=968,Z=0
+3:AreaXMax=0.3,AreaXMin=-254.7,AreaYMax=1151,AreaYMin=832,X=-112.1,Y=980.3,Z=0
+3-2:
+4:AreaXMax=512,AreaXMin=256.4,AreaYMax=-0.1,AreaYMin=-447.5,X=369.1,Y=-234,Z=0
+4-6:
+5:AreaXMax=0.1,AreaXMin=-254.2,AreaYMax=0,AreaYMin=-444.9,X=-114.4,Y=-232.8,Z=0
+5-6:
+6:AreaXMax=256.3,AreaXMin=0.6,AreaYMax=151.9,AreaYMin=-447.8,X=130.9,Y=-151.7,Z=0
+7:AreaXMax=256,AreaXMin=0,AreaYMax=652.9,AreaYMin=151.9,X=126.8,Y=395.6,Z=0
+7-2:
+7-6:
