@@ -239,6 +239,130 @@ return function(lib)
 		return nearestNodeOrNil
 	end
 	
+	function nodeFallback:MergeWithNode(node)
+		if not node then return end
+		
+		local function round(num) return math.Round(num * 10) / 10 end
+		
+		-- Store linked nodes
+		local tempLinkedNodes = {}
+		for linkedNode, link in pairs(from(node.LinkByLinkedNode):ShallowCopy().R) do table.insert(tempLinkedNodes, linkedNode) end
+		
+		-- Create new node, that is as large as self and node together
+		local pos = (self.Pos + node.Pos) / 2
+		
+		self:SetParam("X", round(pos.x))
+		self:SetParam("Y", round(pos.y))
+		self:SetParam("Z", round(pos.z))
+		
+		self:SetParam("AreaXMax", math.max(self.Params.AreaXMax or self.Pos.x, node.Params.AreaXMax or node.Pos.x))
+		self:SetParam("AreaXMin", math.min(self.Params.AreaXMin or self.Pos.x, node.Params.AreaXMin or node.Pos.x))
+		
+		self:SetParam("AreaYMax", math.max(self.Params.AreaYMax or self.Pos.y, node.Params.AreaYMax or node.Pos.y))
+		self:SetParam("AreaYMin", math.min(self.Params.AreaYMin or self.Pos.y, node.Params.AreaYMin or node.Pos.y))
+		
+		-- Restore the links TODO: Restore parameters
+		for _, linkedNode in pairs(tempLinkedNodes) do
+			lib.MapNavMesh:ForceGetLink(self, linkedNode)
+		end
+		
+		node:Remove()
+		
+		return true
+	end
+	
+	function nodeFallback:Split(splitPos, axisName)
+		if not splitPos then return end
+		if axisName ~= "X" and axisName ~= "Y" then return end
+		
+		local function round(num) return math.Round(num * 10) / 10 end
+		
+		local posKey = axisName:lower()
+		local splitCoord = round(splitPos[posKey])
+		
+		-- Check if split position is inside the node area
+		if round(self.Params["Area"..axisName.."Min"] or self.Pos[posKey]) > splitCoord or round(self.Params["Area"..axisName.."Max"] or self.Pos[posKey]) < splitCoord then return end
+		
+		-- Store linked nodes
+		local tempLinkedNodes = {}
+		for linkedNode, link in pairs(from(self.LinkByLinkedNode):ShallowCopy().R) do table.insert(tempLinkedNodes, linkedNode) end
+		
+		-- Make second half first (and it is essentially a copy)
+		local newNode = lib.MapNavMesh:NewNode()
+		
+		for name, v in pairs(self.Params) do
+			newNode:SetParam(name, v)
+		end
+		
+		-- Shrink this node
+		self:SetParam(axisName, round(((self.Params["Area"..axisName.."Min"] or self.Pos[posKey]) + splitCoord) / 2))
+		self:SetParam("Area"..axisName.."Max", splitCoord)
+		
+		-- Shrink new node
+		newNode:SetParam(axisName, round(((newNode.Params["Area"..axisName.."Max"] or newNode.Pos[posKey]) + splitCoord) / 2))
+		newNode:SetParam("Area"..axisName.."Min", splitCoord)
+		
+		-- Restore the links TODO: Restore parameters
+		for _, linkedNode in pairs(tempLinkedNodes) do
+			if round(linkedNode.Params["Area"..axisName.."Min"] or linkedNode.Pos[posKey]) < splitCoord then
+				-- It should already be linked, so ignore
+				-- lib.MapNavMesh:ForceGetLink(self, linkedNode)
+			else
+				local link = self.LinkByLinkedNode[linkedNode]
+				if link then link:Remove() end
+			end
+			if round(linkedNode.Params["Area"..axisName.."Max"] or linkedNode.Pos[posKey]) > splitCoord then
+				lib.MapNavMesh:ForceGetLink(newNode, linkedNode)
+			end
+		end
+		
+		-- Connect new nodes as well
+		lib.MapNavMesh:ForceGetLink(self, newNode)
+		
+		return newNode
+	end
+	
+	function nodeFallback:Extend(extendPos, axisName)
+		if not extendPos then return end
+		if axisName ~= "X" and axisName ~= "Y" then return end
+		
+		local function round(num) return math.Round(num * 10) / 10 end
+		
+		local posKey = axisName:lower()
+		local extendCoord = round(extendPos[posKey])
+		
+		-- Check on what side to place the new node
+		if not self.HasArea then return end
+		local minCoord, maxCoord
+		if extendCoord > round(self.Params["Area"..axisName.."Max"]) then
+			minCoord, maxCoord = round(self.Params["Area"..axisName.."Max"]), extendCoord
+		elseif extendCoord < round(self.Params["Area"..axisName.."Min"]) then
+			minCoord, maxCoord = extendCoord, round(self.Params["Area"..axisName.."Min"])
+		else
+			return -- Position is not outside of the area
+		end
+		
+		-- Make new node that extends the current node until extendPos
+		local newNode = lib.MapNavMesh:NewNode()
+		newNode:SetParam("X", self.Params.X)
+		newNode:SetParam("Y", self.Params.Y)
+		newNode:SetParam("Z", self.Params.Z)
+		newNode:SetParam("AreaXMax", self.Params.AreaXMax)
+		newNode:SetParam("AreaXMin", self.Params.AreaXMin)
+		newNode:SetParam("AreaYMax", self.Params.AreaYMax)
+		newNode:SetParam("AreaYMin", self.Params.AreaYMin)
+		
+		-- Resize new node
+		newNode:SetParam(axisName, round((minCoord + maxCoord) / 2))
+		newNode:SetParam("Area"..axisName.."Min", minCoord)
+		newNode:SetParam("Area"..axisName.."Max", maxCoord)
+		
+		-- Connect old and new node
+		lib.MapNavMesh:ForceGetLink(self, newNode)
+		
+		return newNode
+	end
+	
 	local function removeItem(item)
 		item.NavMesh.ItemById[item.Id] = nil
 		item.NavMesh = nil

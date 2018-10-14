@@ -1,5 +1,4 @@
 D3bot.IsEnabled = engine.ActiveGamemode() == "zombiesurvival" and table.Count(D3bot.MapNavMesh.ItemById) > 0
-D3bot.BotHooksId = "D3bot"
 
 D3bot.BotSeeTr = {
 	mins = Vector(-15, -15, -15),

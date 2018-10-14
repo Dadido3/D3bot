@@ -25,7 +25,7 @@ If you come from an older version, you may have to move the navmeshes from `garr
 
 Everything below here is the original readme, but with updated information:
 
-![](https://github.com/Dadido3/AzBot/raw/master/media/screenshot1.jpg)
+![](https://github.com/Dadido3/D3bot/raw/master/media/screenshot1.jpg)
 Server: pussfoot.ovh:27015 [EU] Zombie Survival | AzBot | Custom Content
 
 # AzBot
@@ -71,13 +71,19 @@ Though I won't take measures against illegimate usage unless I have reasons to d
 - Install the newer version of D3bot.
 - Copy your saved `lua/d3bot/sv_config.lua` back. Or better: check for differences manually, as it's possible that the structure of the file changed.
 
-![](https://github.com/Dadido3/AzBot/raw/master/media/navmesh1.jpg)
+![](https://github.com/Dadido3/D3bot/raw/master/media/navmesh1.jpg)
 
 # How to create navmeshes:
 - Use the chat command `!bot editmesh ^` to enter the mesh editor.
   - Use IN_RELOAD to cycle through the edit modes:
     - Create node: Place nodes with IN_ATTACK.
     - Link nodes: Link nodes by selecting the first then the second node, both with IN_ATTACK. Clear selection with IN_RELOAD.
+    - Merge/Split/Extend nodes: This is a bit more complicated edit mode:
+		- Merge: Select two nodes with IN_ATTACK to merge them.
+		- Split: Select a node with IN_ATTACK and then use IN_ATTACK2 to split the node horizontally to your viewport at your aiming point.
+		- Extend: Select a node with IN_ATTACK and then use IN_ATTACK2 to create a new node between your selected node and your aiming point. The node will be extended along the axis you are looking.
+		- Use IN_RELOAD to clear the selection when you miss-click, otherwise it may happen that you accidentally merge two nodes.
+		- You can quickly delete a node by selecting it two times with IN_ATTACK. (Basically it merges the node with itself, so it's a nice ~~bug~~ feature)
     - Reposition nodes: Select a node with IN_ATTACK and use IN_ATTACK to reposition it or IN_ATTACK2 to reposition it using only the aim axis (X, Y or Z). Clear selection with IN_RELOAD.
     - Resize nodes: Select a node with IN_ATTACK and use IN_ATTACK2 to resize it on the aim axis (X or Y). Clear selection with IN_RELOAD.
     - Copy nodes: Select nodes with IN_ATTACK and use IN_ATTACK2 to copy them offset towards the aim axis (first selected node and cursored position are used as reference for the offset distance).
@@ -105,7 +111,7 @@ Though I won't take measures against illegimate usage unless I have reasons to d
 	- BotMod: Once a non bot player passes this node, the given offset will be applied to the zombie count target. Useful to adjust the bot count on objective maps.
   - Link parameters:
     - Cost: Add a penalty for paths using this link. Higher values makes it less likely for bots to use a path containing this link.
-	- Direction = Forward: Only allow paths from the first to the second element of the link. `!bot setparam 1-2 Unidir Forward` will only allow the bot to move from 1 to 2.
+	- Direction = Forward: Only allow paths from the first to the second element of the link. `!bot setparam 1-2 Direction Forward` will only allow the bot to move from 1 to 2.
 	- Direction = Backward: Same as above, but backwards.
 	- Pouncing = Needed: Only classes with the ability to pounce/leap can use this link.
 - Use `!bot reloadmesh` to discard changes.
@@ -123,10 +129,10 @@ Though I won't take measures against illegimate usage unless I have reasons to d
 - The same commands can be used from the console, just replace `!bot` with `d3bot`. (example: `d3bot editmesh ^`)
 
 ### Notes:
-- Restart the map after saving the mesh for the first time. Every map that has a navmesh at addon loading time is treated as a bot map (enabling the bot count director, !human command and survivor bonuses). Move the navmesh file if that effect is not desired.
-- Use !botmod to change the desired zombies count. Examples: !botmod -100 for no bots, !botmod 100 for full server minus 2 slots for joining players, default is !botmod 1.
+- Restart the map after saving the mesh for the first time. Every map that has a navmesh at addon loading time is treated as a bot map (enabling the bot count director, `!human` command and survivor bonuses if configured). Move the navmesh file if that effect is not desired.
+- Use `!botmod` to change the desired zombies count. Examples: `!botmod -100` for no bots, `!botmod 100` for full server minus 2 slots for joining players, default is `!botmod 0`.
 - Navmeshes can be edited on the fly. Feel free to fix your meshes during testing.
-- This sketch might help: https://github.com/Dadido3/AzBot/raw/master/media/navmesh2.png
+- This sketch might help: https://github.com/Dadido3/D3bot/raw/master/media/navmesh2.png
 - Having sized nodes helps locating (= "what node are you in?"). Unsized nodes use a small sphere instead of a rectangular area.
 - Once a bot enters a node's area/sphere, he immediately moves towards the next node's position.
 - It is recommended to use sized nodes for rooms/areas and unsized nodes for doors. Each hallway, intersection and groove should have their own sized node. For ladders, two unsized nodes, one at bottom and one at top, suffice.
@@ -136,7 +142,7 @@ Though I won't take measures against illegimate usage unless I have reasons to d
 - Bots can take any route with tendency towards the shortest.
 - Bots stubbornly move towards the next node unless they enter another node at time of path refresh (occurs roughly every second). Link wisely.
 
-![](https://github.com/Dadido3/AzBot/raw/master/media/screenshot2.jpg)
+![](https://github.com/Dadido3/D3bot/raw/master/media/screenshot2.jpg)
 
 # ToDo
 Starting with highest public priority:
@@ -148,5 +154,5 @@ Starting with highest public priority:
 - Sloped nodes for more accurate locating of entities.
 - Triangle-based nodes using vertices with automatic adjacence linking.
 - Subpaths in nodes for more accurate movement (no "wall-sliding").
-- Shooting, escape and equipment upgrading behaviour for survivor bots.
+- Equipment upgrading behaviour for survivor bots.
 - Caching of non-branching paths as a single node to optimize the pathfinding performance.

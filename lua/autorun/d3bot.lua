@@ -1,5 +1,5 @@
-
 AddCSLuaFile()
+
 include("d3bot/azlib.lua")("D3bot", {
 	"d3bot/1_extraprop_sv.lua",
 	"d3bot/1_navmesh.lua",
@@ -8,9 +8,23 @@ include("d3bot/azlib.lua")("D3bot", {
 	"d3bot/2_mapnavmeshui_cl.lua",
 	"d3bot/2_mapnavmeshui_sv.lua" })
 
+D3bot.BotHooksId = "D3bot"
+
+-- Shared files
 AddCSLuaFile("d3bot/sh_utilities.lua")
 include("d3bot/sh_utilities.lua")
 
+-- Client files
+AddCSLuaFile("d3bot/cl_convars.lua")
+AddCSLuaFile("d3bot/cl_ui.lua")
+AddCSLuaFile("d3bot/vgui/meshing_main.lua")
+if CLIENT then
+	include("d3bot/cl_convars.lua")
+	include("d3bot/cl_ui.lua")
+	include("d3bot/vgui/meshing_main.lua")
+end
+
+-- Server files
 if SERVER then
 	include("d3bot/sv_config.lua")
 	include("d3bot/sv_names.lua")
