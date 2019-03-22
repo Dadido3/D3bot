@@ -190,7 +190,10 @@ function meta:D3bot_UpdatePath(pathCostFunction, heuristicCostFunction)
 	mem.TgtNodeOrNil = mem.NodeTgtOrNil or mapNavMesh:GetNearestNodeOrNil(mem.TgtOrNil and mem.TgtOrNil:GetPos() or mem.PosTgtOrNil)
 	if not node or not mem.TgtNodeOrNil then return end
 	local abilities = {Walk = true}
-	if self:GetActiveWeapon() and self:GetActiveWeapon().PounceVelocity then abilities.Pounce = true end
+	if self:GetActiveWeapon() then
+		if self:GetActiveWeapon().PounceVelocity then abilities.Pounce = true end
+		if self:GetActiveWeapon().GetClimbing then abilities.Climb = true end
+	end
 	local path = D3bot.GetBestMeshPathOrNil(node, mem.TgtNodeOrNil, pathCostFunction, heuristicCostFunction, abilities)
 	if not path then
 		local handler = findHandler(self:GetZombieClass(), self:Team())

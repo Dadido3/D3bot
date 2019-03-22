@@ -37,7 +37,8 @@ function D3bot.GetBestMeshPathOrNil(startNode, endNode, pathCostFunction, heuris
 			local able = true
 			if link.Params.Walking == "Needed" and abilities and not abilities.Walk then able = false end
 			if link.Params.Pouncing == "Needed" and abilities and not abilities.Pounce then able = false end
-			
+			if linkedNode.Params.Climbing == "Needed" and abilities and not abilities.Climb then able = false end
+
 			if able and not blocked and not (link.Params.Direction == "Forward" and link.Nodes[2] == node) and not (link.Params.Direction == "Backward" and link.Nodes[1] == node) then
 				local linkedNodePathCost = minimalPathCostByNode[node] + math.max(node.Pos:Distance(linkedNode.Pos) + (linkedNode.Params.Cost or 0) + (link.Params.Cost or 0) + (pathCostFunction and pathCostFunction(node, linkedNode, link) or 0), 0) -- Prevent negative change of the link costs, otherwise it will get stuck decreasing forever
 				if linkedNodePathCost < (minimalPathCostByNode[linkedNode] or math.huge) then
@@ -93,7 +94,8 @@ function D3bot.GetEscapeMeshPathOrNil(startNode, iterations, pathCostFunction, h
 			local able = true
 			if link.Params.Walking == "Needed" and abilities and not abilities.Walk then able = false end
 			if link.Params.Pouncing == "Needed" and abilities and not abilities.Pounce then able = false end
-			
+			if linkedNode.Params.Climbing == "Needed" and abilities and not abilities.Climb then able = false end
+
 			if able and not blocked and not (link.Params.Direction == "Forward" and link.Nodes[2] == node) and not (link.Params.Direction == "Backward" and link.Nodes[1] == node) then
 				local linkedNodePathCost = minimalPathCostByNode[node] + math.max((linkedNode.Params.Cost or 0) + (link.Params.Cost or 0) + (pathCostFunction and pathCostFunction(node, linkedNode, link) or 0), 0) -- Prevent negative change of the link costs, otherwise it will get stuck decreasing forever
 				if linkedNodePathCost < (minimalPathCostByNode[linkedNode] or math.huge) then

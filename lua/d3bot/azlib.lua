@@ -188,6 +188,7 @@ return function(globalK, otherLibFilesRelPathEach)
 	for name, color in pairs(lib.Color) do
 		color.HalfAlpha = ColorAlpha(color, 128)
 		color.EightAlpha = ColorAlpha(color, 32)
+		color.SixteenthAlpha = ColorAlpha(color, 32)
 	end
 	
 	function lib.GetEntsOfClss(clss) return from(clss):SelV(ents.FindByClass):Concat().R end

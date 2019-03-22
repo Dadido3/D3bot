@@ -27,12 +27,27 @@ function D3bot.Basics.Walk(bot, pos, slowdown, proximity) -- 'pos' should be ins
 	
 	local origin = bot:GetPos()
 	local actions = {}
-	local inTheAir
+	
+	local sideSpeed
+	
+	-- Check if the bot needs to climb while being on a node or going towards a node. As maneuvering while climbing is different, this will change/override some movement actions.
+	local shouldClimb = (nodeOrNil and nodeOrNil.Params.Climbing == "Needed") or (nextNodeOrNil and nextNodeOrNil.Params.Climbing == "Needed")
 	
 	-- Make bot aim straight when outside of current node area This should prevent falling down edges.
 	local aimStraight
 	if nodeOrNil and not nodeOrNil:GetContains(origin, nil) then aimStraight = true end
-	bot:D3bot_FaceTo(pos, origin, aimStraight and 1 or D3bot.BotAngLerpFactor, aimStraight and 0 or 1)
+	if shouldClimb then
+		if bot:GetActiveWeapon() and bot:GetActiveWeapon().GetClimbing and bot:GetActiveWeapon():GetClimbing() and bot:GetActiveWeapon().GetClimbSurface then
+			local tr = bot:GetActiveWeapon():GetClimbSurface()
+			if tr.Hit then
+				bot:D3bot_FaceTo(origin - tr.HitNormal, origin, D3bot.BotAngLerpFactor, 0)
+			end
+		else
+			bot:D3bot_FaceTo(Vector(pos.x, pos.y, origin.z), origin, 1, 0)
+		end
+	else
+		bot:D3bot_FaceTo(pos, origin, aimStraight and 1 or D3bot.BotAngLerpFactor, aimStraight and 0 or 1)
+	end
 	
 	local duckParam = nodeOrNil and nodeOrNil.Params.Duck
 	local duckToParam = nextNodeOrNil and nextNodeOrNil.Params.DuckTo
@@ -54,8 +69,8 @@ function D3bot.Basics.Walk(bot, pos, slowdown, proximity) -- 'pos' should be ins
 			actions.Attack = true
 		end
 	end
-	
-	local facesHindrance = bot:GetVelocity():Length2D() < 0.50 * speed - 10
+
+	local facesHindrance = not shouldClimb and bot:GetVelocity():Length2D() < 0.50 * speed - 10
 	local minorStuck, majorStuck = bot:D3bot_CheckStuck()
 	
 	if not facesHindrance then
@@ -68,7 +83,8 @@ function D3bot.Basics.Walk(bot, pos, slowdown, proximity) -- 'pos' should be ins
 	
 	if bot:GetMoveType() ~= MOVETYPE_LADDER then
 		if bot:IsOnGround() then
-			if jumpParam == "Always" or jumpToParam == "Always" then
+			-- If we should climb, jump while we're on the ground
+			if shouldClimb or jumpParam == "Always" or jumpToParam == "Always" then
 				actions.Jump = true
 			end
 			if facesHindrance then
@@ -84,8 +100,19 @@ function D3bot.Basics.Walk(bot, pos, slowdown, proximity) -- 'pos' should be ins
 				end
 			end
 		else
-			inTheAir = true
 			actions.Duck = true
+			if shouldClimb then
+				-- If we are airborne and should be climbing, try to climb the surface
+				actions.Attack2 = true
+				-- Calculate climbing speeds
+				if bot:GetActiveWeapon() and bot:GetActiveWeapon().GetClimbing and bot:GetActiveWeapon():GetClimbing() then
+					local yaw1 = bot:GetForward():Angle().Yaw
+					local yaw2 = (Vector(pos.x, pos.y, origin.z) - origin):Angle().Yaw
+					sideSpeed = math.AngleDifference(yaw1, yaw2)
+					speed = (pos.z - origin.z + 20) * 10
+					if (math.abs(speed) < 20 or bot:GetVelocity():Length() < 10) and math.abs(sideSpeed) > 1 then speed = 0 end
+				end
+			end
 		end
 	elseif minorStuck then
 		-- Stuck on ladder
@@ -104,20 +131,13 @@ function D3bot.Basics.Walk(bot, pos, slowdown, proximity) -- 'pos' should be ins
 	actions.Attack = facesHindrance
 	actions.Use = actions.Use or facesHindrance
 	
-	if speed > 0 then actions.Forward = true end
-	if speed < 0 then actions.Backward = true end
+	if speed > 0 then actions.MoveForward = true end
+	if speed < 0 then actions.MoveBackward = true end
 	
-	if inTheAir then
-		--actions.Forward = false
-		--actions.Backward = false
-		if math.random(2) == 1 then
-			actions.Right = true
-		else
-			actions.Left = true
-		end
-	end
+	if sideSpeed and sideSpeed > 0 then actions.MoveRight = true end
+	if sideSpeed and sideSpeed < 0 then actions.MoveLeft = true end
 	
-	return true, actions, speed, mem.Angs, minorStuck, majorStuck, facesHindrance
+	return true, actions, speed, sideSpeed, nil, mem.Angs, minorStuck, majorStuck, facesHindrance
 end
 
 function D3bot.Basics.WalkAttackAuto(bot)
@@ -131,8 +151,13 @@ function D3bot.Basics.WalkAttackAuto(bot)
 	local actions = {}
 	local facesTgt = false
 	
+	-- Check if the bot needs to climb while being on a node or going towards a node. If so, ignore everything else, and use Basics.WalkAuto, which will handle everything fine. TODO: Put everything into its own basics function
+	local shouldClimb = (nodeOrNil and nodeOrNil.Params.Climbing == "Needed") or (nextNodeOrNil and nextNodeOrNil.Params.Climbing == "Needed")
+	
 	-- TODO: Reduce can see target calls
-	if mem.TgtOrNil and not mem.DontAttackTgt and (bot:D3bot_CanSeeTarget() or not nextNodeOrNil) then
+	if shouldClimb and nextNodeOrNil then
+		return D3bot.Basics.Walk(bot, nextNodeOrNil.Pos)
+	elseif mem.TgtOrNil and not mem.DontAttackTgt and (bot:D3bot_CanSeeTarget() or not nextNodeOrNil) then
 		aimPos = bot:D3bot_GetAttackPosOrNilFuture(nil, math.Rand(0, D3bot.BotAimPosVelocityOffshoot))
 		origin = bot:D3bot_GetViewCenter()
 		if aimPos and aimPos:Distance(bot:D3bot_GetViewCenter()) < D3bot.BotAttackDistMin then
@@ -184,7 +209,7 @@ function D3bot.Basics.WalkAttackAuto(bot)
 			actions.Attack = true
 		end
 	end
-	
+
 	local facesHindrance = bot:GetVelocity():Length2D() < 0.50 * speed - 10
 	local minorStuck, majorStuck = bot:D3bot_CheckStuck()
 	
@@ -233,9 +258,9 @@ function D3bot.Basics.WalkAttackAuto(bot)
 	actions.Attack = facesTgt or facesHindrance
 	actions.Use = actions.Use or facesHindrance
 	
-	actions.Forward = true
+	actions.MoveForward = true
 	
-	return true, actions, speed, mem.Angs, minorStuck, majorStuck, facesHindrance
+	return true, actions, speed, nil, nil, mem.Angs, minorStuck, majorStuck, facesHindrance
 end
 
 function D3bot.Basics.PounceAuto(bot)
@@ -307,7 +332,7 @@ function D3bot.Basics.PounceAuto(bot)
 			bot:D3bot_UpdatePathProgress()
 		end
 		
-		return true, actions, 0, mem.Angs, false
+		return true, actions, 0, nil, nil, mem.Angs, false
 	end
 	
 	return
@@ -352,7 +377,7 @@ function D3bot.Basics.AimAndShoot(bot, target, maxDistance)
 		bot:D3bot_FaceTo(targetPos, origin, D3bot.BotAimAngLerpFactor, 0)
 	end
 	
-	return true, actions, 0, mem.Angs, false
+	return true, actions, 0, nil, nil, mem.Angs, false
 end
 
 function D3bot.Basics.LookAround(bot)
@@ -367,5 +392,5 @@ function D3bot.Basics.LookAround(bot)
 	
 	bot:D3bot_FaceTo(mem.LookTarget:D3bot_GetViewCenter(), origin, D3bot.BotAngLerpFactor * 0.3, 0)
 	
-	return true, nil, 0, mem.Angs, false
+	return true, nil, 0, nil, nil, mem.Angs, false
 end

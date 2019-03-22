@@ -21,13 +21,13 @@ function HANDLER.UpdateBotCmdFunction(bot, cmd)
 	local mem = bot.D3bot_Mem
 	local botPos = bot:GetPos()
 	
-	local result, actions, forwardSpeed, aimAngle, minorStuck, majorStuck, facesHindrance = D3bot.Basics.WalkAttackAuto(bot)
+	local result, actions, forwardSpeed, sideSpeed, upSpeed, aimAngle, minorStuck, majorStuck, facesHindrance = D3bot.Basics.WalkAttackAuto(bot)
 	if result and math.abs(forwardSpeed) > 30 then
 		actions.Attack = false
 	else
-		result, actions, forwardSpeed, aimAngle = D3bot.Basics.AimAndShoot(bot, mem.AttackTgtOrNil, mem.maxShootingDistance) -- TODO: Make bots walk backwards while shooting
+		result, actions, forwardSpeed, sideSpeed, upSpeed, aimAngle = D3bot.Basics.AimAndShoot(bot, mem.AttackTgtOrNil, mem.maxShootingDistance) -- TODO: Make bots walk backwards while shooting
 		if not result then
-			result, actions, forwardSpeed, aimAngle = D3bot.Basics.LookAround(bot)
+			result, actions, forwardSpeed, sideSpeed, upSpeed, aimAngle = D3bot.Basics.LookAround(bot)
 			if not result then return end
 		end
 	end
@@ -52,11 +52,13 @@ function HANDLER.UpdateBotCmdFunction(bot, cmd)
 	
 	local buttons
 	if actions then
-		buttons = bit.bor(actions.Forward and IN_FORWARD or 0, actions.Backward and IN_BACKWARD or 0, actions.Attack and IN_ATTACK or 0, actions.Attack2 and IN_ATTACK2 or 0, actions.Reload and IN_RELOAD or 0, actions.Duck and IN_DUCK or 0, actions.Jump and IN_JUMP or 0, actions.Use and IN_USE or 0, actions.Phase and IN_ZOOM or 0)
+		buttons = bit.bor(actions.MoveForward and IN_FORWARD or 0, actions.MoveBackward and IN_BACK or 0, actions.MoveLeft and IN_MOVELEFT or 0, actions.MoveRight and IN_MOVERIGHT or 0, actions.Attack and IN_ATTACK or 0, actions.Attack2 and IN_ATTACK2 or 0, actions.Reload and IN_RELOAD or 0, actions.Duck and IN_DUCK or 0, actions.Jump and IN_JUMP or 0, actions.Use and IN_USE or 0, actions.Phase and IN_ZOOM or 0)
 	end
 	
 	if aimAngle then bot:SetEyeAngles(aimAngle)	cmd:SetViewAngles(aimAngle) end
 	if forwardSpeed then cmd:SetForwardMove(forwardSpeed) end
+	if sideSpeed then cmd:SetSideMove(sideSpeed) end
+	if upSpeed then cmd:SetUpMove(upSpeed) end
 	if buttons then cmd:SetButtons(buttons) end
 end
 

@@ -36,9 +36,9 @@ function HANDLER.UpdateBotCmdFunction(bot, cmd)
 	bot:D3bot_UpdatePathProgress()
 	D3bot.Basics.SuicideOrRetarget(bot)
 	
-	local result, actions, forwardSpeed, aimAngle, minorStuck, majorStuck, facesHindrance = D3bot.Basics.PounceAuto(bot)
+	local result, actions, forwardSpeed, sideSpeed, upSpeed, aimAngle, minorStuck, majorStuck, facesHindrance = D3bot.Basics.PounceAuto(bot)
 	if not result then
-		result, actions, forwardSpeed, aimAngle, minorStuck, majorStuck, facesHindrance = D3bot.Basics.WalkAttackAuto(bot)
+		result, actions, forwardSpeed, sideSpeed, upSpeed, aimAngle, minorStuck, majorStuck, facesHindrance = D3bot.Basics.WalkAttackAuto(bot)
 		if not result then
 			return
 		end
@@ -46,7 +46,7 @@ function HANDLER.UpdateBotCmdFunction(bot, cmd)
 	
 	local buttons
 	if actions then
-		buttons = bit.bor(actions.Forward and IN_FORWARD or 0, actions.Backward and IN_BACKWARD or 0, actions.Attack and IN_ATTACK or 0, actions.Attack2 and IN_ATTACK2 or 0, actions.Duck and IN_DUCK or 0, actions.Jump and IN_JUMP or 0, actions.Use and IN_USE or 0)
+		buttons = bit.bor(actions.MoveForward and IN_FORWARD or 0, actions.MoveBackward and IN_BACK or 0, actions.MoveLeft and IN_MOVELEFT or 0, actions.MoveRight and IN_MOVERIGHT or 0, actions.Attack and IN_ATTACK or 0, actions.Attack2 and IN_ATTACK2 or 0, actions.Duck and IN_DUCK or 0, actions.Jump and IN_JUMP or 0, actions.Use and IN_USE or 0)
 	end
 	
 	if majorStuck and GAMEMODE:GetWaveActive() then bot:Kill() end
@@ -54,6 +54,8 @@ function HANDLER.UpdateBotCmdFunction(bot, cmd)
 	bot:SetEyeAngles(aimAngle)
 	cmd:SetViewAngles(aimAngle)
 	cmd:SetForwardMove(forwardSpeed)
+	if sideSpeed then cmd:SetSideMove(sideSpeed) end
+	if upSpeed then cmd:SetUpMove(upSpeed) end
 	cmd:SetButtons(buttons)
 end
 
