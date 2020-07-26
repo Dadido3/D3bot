@@ -203,4 +203,4 @@ Starting with highest public priority:
 [Fafy2801]: https://github.com/Fafy2801
 [Half1569]: https://github.com/Half1569
 [ErickMaksimets]: https://github.com/ErickMaksimets
-[Nightmare!]: https://steamcommunity.com/profiles/76561198171603670/
+[Nightmare!]: https://steamcommunity.com/profiles/76561198171603670
