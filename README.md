@@ -177,7 +177,7 @@ Though I won't take measures against illegitimate usage unless I have reasons to
 - All links are normally bidirectional (see also: Wall = Suicide parameter or Direction = Forward/Backward).
 - Bots can take any route with tendency towards the shortest.
 - Bots stubbornly move towards the next node unless they enter another node at time of path refresh (occurs roughly every second). Link wisely.
-- Bots may aim too perfect, the precision can be changed inside `sv_config.lua` with the option `D3bot.FaceTargetOffshootFactor`. (Suggestion for the fix by [STEAM_0:0:105668971])
+- Bots may aim too perfect, the precision can be changed inside `sv_config.lua` with the option `D3bot.FaceTargetOffshootFactor`. (Suggestion for the fix by [HordeStick])
 
 ![Bots in action](./media/screenshot2.jpg)
 
@@ -203,4 +203,4 @@ Starting with highest public priority:
 [Fafy2801]: https://github.com/Fafy2801
 [Half1569]: https://github.com/Half1569
 [ErickMaksimets]: https://github.com/ErickMaksimets
-[STEAM_0:0:105668971]: https://steamcommunity.com/profiles/76561198171603670
+[HordeStick]: https://steamcommunity.com/profiles/76561198171603670
