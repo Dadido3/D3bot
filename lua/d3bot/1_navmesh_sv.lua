@@ -17,27 +17,39 @@ return function(lib)
 	
 	util.AddNetworkString(lib.MapNavMeshNetworkStr)
 	function lib.UploadMapNavMesh(plOrPls)
-		local rawData = util.Compress(lib.MapNavMesh:Serialize()) or ""
-		local dataLen = rawData:len()
-		local maxChunkSize = 2^16 - 10 -- Leave 10 bytes for other stuff than the data.
+		local co = coroutine.create(function()			
+			local rawData = util.Compress(lib.MapNavMesh:Serialize()) or ""
+			local dataLen = rawData:len()
+			local maxChunkSize = 2^16 - 10 -- Leave 10 bytes for other stuff than the data.
+	
+			for i = 1, dataLen, maxChunkSize do
+				local dataLeft = dataLen + 1 - i
+				local chunkSize = math.min(maxChunkSize, dataLeft)
+				local subDataComp = string.sub(rawData, i, i + chunkSize - 1)
+	
+				net.Start(lib.MapNavMeshNetworkStr, false)
+				net.WriteBool(false)
+				net.WriteUInt(chunkSize, 16)
+				net.WriteData(subDataComp, chunkSize)
+				net.Send(plOrPls)
 
-		for i = 1, dataLen, maxChunkSize do
-			local dataLeft = dataLen + 1 - i
-			local chunkSize = math.min(maxChunkSize, dataLeft)
-			local subDataComp = string.sub(rawData, i, i + chunkSize - 1)
+				print(chunkSize, dataLeft)
 
+				coroutine.yield()
+			end
+			
+			-- Finish the transfer.
 			net.Start(lib.MapNavMeshNetworkStr, false)
-			net.WriteBool(false)
-			net.WriteUInt(chunkSize, 16)
-			net.WriteData(subDataComp, chunkSize)
+			net.WriteBool(true)
+			net.WriteUInt(0, 16)
 			net.Send(plOrPls)
-		end
 
-		-- Finish the transfer.
-		net.Start(lib.MapNavMeshNetworkStr, false)
-		net.WriteBool(true)
-		net.WriteUInt(0, 16)
-		net.Send(plOrPls)
+			hook.Remove("Think", "d3bot.MapNavMeshUpload")
+		end)
+
+		hook.Add("Think", "d3bot.MapNavMeshUpload", function()
+			coroutine.resume(co)
+		end)
 	end
 	
 	file.CreateDir(lib.MapNavMeshDir)
