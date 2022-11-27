@@ -15,13 +15,19 @@ return function(lib)
 		return file.Exists(lib.GetMapNavMeshPath(mapName), "DATA")
 	end
 	
-	util.AddNetworkString(lib.MapNavMeshNetworkStr)
-	function lib.UploadMapNavMesh(plOrPls)
-		local co = coroutine.create(function()			
+	local uploadWorker = nil
+	local uploading = false
+	
+	local NextTick = 0
+	local function MapNavMeshUpload()
+		if NextTick > CurTime() then return end
+		NextTick = CurTime() + 0.2
+
+		local running, err = D3bot.Async.Run(uploadWorker, function(worker)
 			local rawData = util.Compress(lib.MapNavMesh:Serialize()) or ""
 			local dataLen = rawData:len()
 			local maxChunkSize = 2^16 - 10 -- Leave 10 bytes for other stuff than the data.
-	
+			
 			for i = 1, dataLen, maxChunkSize do
 				local dataLeft = dataLen + 1 - i
 				local chunkSize = math.min(maxChunkSize, dataLeft)
@@ -31,9 +37,7 @@ return function(lib)
 				net.WriteBool(false)
 				net.WriteUInt(chunkSize, 16)
 				net.WriteData(subDataComp, chunkSize)
-				net.Send(plOrPls)
-
-				print(chunkSize, dataLeft)
+				net.Send(worker:GetData())
 
 				coroutine.yield()
 			end
@@ -42,14 +46,30 @@ return function(lib)
 			net.Start(lib.MapNavMeshNetworkStr, false)
 			net.WriteBool(true)
 			net.WriteUInt(0, 16)
-			net.Send(plOrPls)
+			net.Send(worker:GetData())
+		end)
 
+		if err then
+			print(string.format("D3bot: Navmesh upload worker failed: %s", err))
+		end
+
+		if not running then
 			hook.Remove("Think", "d3bot.MapNavMeshUpload")
-		end)
+			uploading = false
+		end
+	end
 
-		hook.Add("Think", "d3bot.MapNavMeshUpload", function()
-			coroutine.resume(co)
-		end)
+	util.AddNetworkString(lib.MapNavMeshNetworkStr)
+	
+	function lib.UploadMapNavMesh(plOrPls)
+		if not uploading then
+			uploadWorker = D3bot.Async.CreateWorker()
+			uploadWorker:SetData(plOrPls)
+			hook.Add("Think", "d3bot.MapNavMeshUpload", MapNavMeshUpload)
+			uploading = true
+		elseif uploadWorker then
+			uploadWorker:SetData(plOrPls)
+		end
 	end
 	
 	file.CreateDir(lib.MapNavMeshDir)
