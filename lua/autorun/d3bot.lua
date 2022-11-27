@@ -11,7 +11,9 @@ include("d3bot/azlib.lua")("D3bot", {
 D3bot.BotHooksId = "D3bot"
 
 -- Shared files
+AddCSLuaFile("d3bot/sh_async.lua")
 AddCSLuaFile("d3bot/sh_utilities.lua")
+include("d3bot/sh_async.lua")
 include("d3bot/sh_utilities.lua")
 
 -- Client files
