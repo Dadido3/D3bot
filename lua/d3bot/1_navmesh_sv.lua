@@ -15,6 +15,7 @@ return function(lib)
 		return file.Exists(lib.GetMapNavMeshPath(mapName), "DATA")
 	end
 	
+	local uploadQueue = {}
 	local uploadWorker = nil
 	local uploading = false
 	
@@ -54,21 +55,27 @@ return function(lib)
 		end
 
 		if not running then
-			hook.Remove("Think", "d3bot.MapNavMeshUpload")
-			uploading = false
+			if not uploadQueue[1] then
+				hook.Remove("Think", "d3bot.MapNavMeshUpload")
+				uploading = false
+			elseif uploadWorker:GetFinished() then
+				uploadWorker = D3bot.Async.CreateWorker()
+				uploadWorker:SetData(table.remove(uploadQueue, 1))
+				uploading = true
+			end
 		end
 	end
 
 	util.AddNetworkString(lib.MapNavMeshNetworkStr)
 	
 	function lib.UploadMapNavMesh(plOrPls)
+		uploadQueue[#uploadQueue + 1] = plOrPls
+
 		if not uploading then
 			uploadWorker = D3bot.Async.CreateWorker()
-			uploadWorker:SetData(plOrPls)
+			uploadWorker:SetData(table.remove(uploadQueue, 1))
 			hook.Add("Think", "d3bot.MapNavMeshUpload", MapNavMeshUpload)
 			uploading = true
-		elseif uploadWorker then
-			uploadWorker:SetData(plOrPls)
 		end
 	end
 	

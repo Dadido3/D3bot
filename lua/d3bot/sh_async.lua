@@ -13,26 +13,21 @@ function ASYNC.Run(worker, func)
 	-- Start coroutine on the first call.
 	local cr = worker:GetCoroutine()
 	if not cr then
-		cr = coroutine.create(function(used_worker)
-			local graceful, _ = pcall(func, used_worker)
-			if graceful then
-				worker:SetFinished(true)
-			end
-		end)
+		cr = coroutine.create(func)
 		worker:SetCoroutine(cr)
 	end
 
 	-- Resume coroutine, catch and print any error.
 	local succ, msg = coroutine.resume(cr, worker)
-	if not succ and not worker:GetFinished() then
+	if not succ then
 		-- Coroutine ended unexpectedly.
-		worker = nil
+		worker:SetFinished()
 		return false, string.format("%s failed: %s", cr, msg)
 	end
 
 	-- Check if the coroutine finished. We will never encounter "running", as we don't call coroutine.status from inside the coroutine.
-	if coroutine.status(cr) ~= "suspended" or worker:GetFinished() then
-		worker = nil
+	if not cr or coroutine.status(cr) ~= "suspended" then
+		worker:SetFinished(true)
 		return false, nil
 	end
 
@@ -51,20 +46,13 @@ function ASYNC.Defer(worker, func)
 	-- Start coroutine on the first call.
 	local cr = worker:GetCoroutine()
 	if not cr then
-		cr = coroutine.create(function(used_worker)
-			local graceful, err = pcall(func, used_worker)
-			if graceful then
-				worker:SetFinished(true)
-			elseif err then
-				print(err)
-			end
-		end)
+		cr = coroutine.create(func)
 		worker:SetCoroutine(cr)
 	end
 
 	-- Check if the coroutine finished. We will never encounter "running", as we don't call coroutine.status from inside the coroutine.
-	if coroutine.status(cr) ~= "suspended" or worker:GetFinished() then
-		worker = nil
+	if not cr or coroutine.status(cr) ~= "suspended" then
+		worker:SetFinished(true)
 		return false
 	end
 
