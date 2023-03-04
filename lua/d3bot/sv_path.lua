@@ -2,6 +2,13 @@ local mathMax = math.max
 local mathHuge = math.huge
 local tableInsert = table.insert
 local Distance = FindMetaTable("Vector").Distance
+local NodeBlocking_mins, NodeBlocking_maxs, linkedNodeParams, linkParams, linkPos, blocked, able, blockedForward, blockedBackward, a_Walk, a_Pounce, a_Climb, wave
+local minimalPathCostByNode = {}
+local minimalTotalPathCostByNode = {}
+local entranceByNode = {}
+local evaluationNodeQueue = D3bot.NewSortedQueue(function(nodeA, nodeB)
+		return (minimalTotalPathCostByNode[nodeA] or mathHuge) > (minimalTotalPathCostByNode[nodeB] or mathHuge)
+	end)
 
 ---Returns the best path (or nil if there is no possible path) between startNode and endNode.
 ---@param startNode any
@@ -12,9 +19,12 @@ local Distance = FindMetaTable("Vector").Distance
 ---@return any|nil
 function D3bot.GetBestMeshPathOrNil(startNode, endNode, pathCostFunction, heuristicCostFunction, abilities)
 	if not abilities then return nil end
+	pathCostFunction = pathCostFunction and pathCostFunction(node, linkedNode, link) or 0
 
-	local a_Walk, a_Pounce, a_Climb = abilities.Walk, abilities.Pounce, abilities.Climb
-	local wave = GAMEMODE:GetWave()
+	a_Walk, a_Pounce, a_Climb = abilities.Walk, abilities.Pounce, abilities.Climb
+	wave = GAMEMODE:GetWave()
+	NodeBlocking_mins = NodeBlocking_mins or D3bot.NodeBlocking.mins
+	NodeBlocking_maxs = NodeBlocking_maxs or D3bot.NodeBlocking.maxs
 	-- See: https://en.wikipedia.org/wiki/A*_search_algorithm
 
 	-- Benchmarks:
@@ -24,18 +34,15 @@ function D3bot.GetBestMeshPathOrNil(startNode, endNode, pathCostFunction, heuris
 	-- 2023-03-03 (052cafa -> bb6972b): ~5.179 ms per call -> ~4.480 ms per call. (Delta: -13%)
 	-- 2023-03-03 (dba4671 -> 2669bf9): ~4.453 ms per call -> ~3.901 ms per call. (Delta: -11%)
 
-	local minimalTotalPathCostByNode = {}
-	local minimalPathCostByNode = { [startNode] = 0 }
+	minimalTotalPathCostByNode = {}
+	minimalPathCostByNode = { [startNode] = 0 }
 
-	local entranceByNode = {}
+	entranceByNode = {}
 
-	local evaluationNodeQueue = D3bot.NewSortedQueue(function(nodeA, nodeB)
-		return (minimalTotalPathCostByNode[nodeA] or mathHuge) > (minimalTotalPathCostByNode[nodeB] or mathHuge)
-	end)
 	evaluationNodeQueue:Enqueue(startNode)
-
+	local node
 	while true do
-		local node = evaluationNodeQueue:Dequeue()
+		node = evaluationNodeQueue:Dequeue()
 		if not node then return end
 
 		if node == endNode then
@@ -49,12 +56,13 @@ function D3bot.GetBestMeshPathOrNil(startNode, endNode, pathCostFunction, heuris
 		end
 
 		for linkedNode, link in pairs(node.LinkByLinkedNode) do
-			local linkedNodeParams = linkedNode.Params
-			local linkParams = link.Params
+			linkedNodeParams = linkedNode.Params
+			linkParams = link.Params
+			linkNodePos = linkedNode.Pos
 
-			local blocked = false
+			blocked = false
 			if linkedNodeParams.Condition == "Unblocked" or linkedNodeParams.Condition == "Blocked" then
-				local ents = ents.FindInBox(linkedNode.Pos + D3bot.NodeBlocking.mins, linkedNode.Pos + D3bot.NodeBlocking.maxs)
+				local ents = ents.FindInBox(linkNodePos + NodeBlocking_mins, linkNodePos + NodeBlocking_maxs)
 				for _, ent in ipairs(ents) do
 					if D3bot.NodeBlocking.classes[ent:GetClass()] then blocked = true; break end
 				end
@@ -71,26 +79,27 @@ function D3bot.GetBestMeshPathOrNil(startNode, endNode, pathCostFunction, heuris
 			end
 
 			-- Check if the bot is able to use certain paths.
-			local able = true
+			able = true
 			if not a_Walk and linkParams.Walking == "Needed" then able = false end
 			if not a_Pounce and linkParams.Pouncing == "Needed" then able = false end
 			if not a_Climb and linkedNodeParams.Climbing == "Needed" then able = false end
 
-			local blockedForward = (linkParams.Direction == "Forward" and link.Nodes[2] == node)
-			local blockedBackward = (linkParams.Direction == "Backward" and link.Nodes[1] == node)
+			blockedForward = (linkParams.Direction == "Forward" and link.Nodes[2] == node)
+			blockedBackward = (linkParams.Direction == "Backward" and link.Nodes[1] == node)
 
 			if able and not blocked and not blockedForward and not blockedBackward then
 				local linkDist = link.CachedDist
 				if not linkDist then
-					linkDist = Distance(node.Pos, linkedNode.Pos)
+					linkDist = Distance(node.Pos, linkNodePos)
 					link.CachedDist = linkDist
 				end
-				local linkedNodePathCost = minimalPathCostByNode[node] + mathMax(linkDist + (linkedNodeParams.Cost or 0) + (linkParams.Cost or 0) + (pathCostFunction and pathCostFunction(node, linkedNode, link) or 0), 0) -- Prevent negative change of the link costs, otherwise it will get stuck decreasing forever.
+				-- pathCostFunction(node, linkedNode, link) or 0
+				local linkedNodePathCost = minimalPathCostByNode[node] + mathMax(linkDist + (linkedNodeParams.Cost or 0) + (linkParams.Cost or 0) + pathCostFunction, 0) -- Prevent negative change of the link costs, otherwise it will get stuck decreasing forever.
 				if linkedNodePathCost < (minimalPathCostByNode[linkedNode] or mathHuge) then
 					entranceByNode[linkedNode] = node
 					minimalPathCostByNode[linkedNode] = linkedNodePathCost
 					local heuristic = (heuristicCostFunction and heuristicCostFunction(linkedNode) or 0)
-					minimalTotalPathCostByNode[linkedNode] = linkedNodePathCost + heuristic + Distance(linkedNode.Pos, endNode.Pos) -- Negative costs are allowed here.
+					minimalTotalPathCostByNode[linkedNode] = linkedNodePathCost + heuristic + Distance(linkNodePos, endNode.Pos) -- Negative costs are allowed here.
 					evaluationNodeQueue:Enqueue(linkedNode)
 				end
 			end
