@@ -8,8 +8,16 @@ HANDLER.PounceIntervalPlusRandom = 5 -- Additional random delay.
 
 HANDLER.Fallback = false
 function HANDLER.SelectorFunction(zombieClassName, team)
-	return team == TEAM_UNDEAD and zombieClassName == "Headcrab"
+	return team == TEAM_UNDEAD and (zombieClassName == "Headcrab" or zombieClassName == "Fast Headcrab" or zombieClassName == "Bloodsucker Headcrab"
+		or zombieClassName == "Poison Headcrab" or zombieClassName == "Barbed Headcrab" or zombieClassName == "Doom Crab" or zombieClassName == "Extinction Crab")
 end
+
+HANDLER.RandomSecondaryAttack = {
+	["Poison Headcrab"] = {MinTime = 3, MaxTime = 3},
+	["Barbed Headcrab"] = {MinTime = 3, MaxTime = 3},
+	["Doom Crab"] = {MinTime = 5, MaxTime = 5},
+	["Extinction Crab"] = {MinTime = 5, MaxTime = 5}
+}
 
 ---Updates the bot move data every frame.
 ---@param bot GPlayer|table
@@ -39,6 +47,24 @@ function HANDLER.UpdateBotCmdFunction(bot, cmd)
 		mem.PounceActive, mem.NextPounce = mem.PounceActive or CurTime(), nil
 	end
 
+	local secAttack = HANDLER.RandomSecondaryAttack[GAMEMODE.ZombieClasses[bot:GetZombieClass()].Name]
+	if secAttack then
+		if (not mem.NextThrowPoisonTime or mem.NextThrowPoisonTime <= CurTime()) and mem.TgtOrNil and mem.TgtOrNil:IsValid() and mem.TgtOrNil:IsPlayer()
+		and (TrueVisible(bot:GetShootPos(), mem.TgtOrNil:WorldSpaceCenter()) or TrueVisible(bot:GetShootPos(), mem.TgtOrNil:GetShootPos())) then
+			mem.NextThrowPoisonTime = CurTime() + secAttack.MinTime + math.random() * (secAttack.MaxTime - secAttack.MinTime)
+			HANDLER.AngOffshoot = 0
+
+			actions.Attack2 = true
+
+			mem.SpitOnPlayer = true
+
+			mem.BarricadeAttackEntity = mem.TgtOrNil
+			mem.BarricadeAttackPos = bot:D3bot_GetAttackPosOrNilFuture(1.5, 0)
+
+			timer.Simple(1.5, function() if IsValid(bot) then HANDLER.AngOffshoot = 45 mem.SpitOnPlayer = false end end)
+		end
+	end
+
 	-- Let the headcrab pounce.
 	-- While it pounces, prevent some actions that may interfere.
 	actions.Duck = nil -- Never let the headcrab duck.
@@ -60,7 +86,7 @@ function HANDLER.UpdateBotCmdFunction(bot, cmd)
 		buttons = bit.bor(actions.MoveForward and IN_FORWARD or 0, actions.MoveBackward and IN_BACK or 0, actions.MoveLeft and IN_MOVELEFT or 0, actions.MoveRight and IN_MOVERIGHT or 0, actions.Attack and IN_ATTACK or 0, actions.Attack2 and IN_ATTACK2 or 0, actions.Duck and IN_DUCK or 0, actions.Jump and IN_JUMP or 0, actions.Use and IN_USE or 0)
 	end
 
-	if majorStuck and GAMEMODE:GetWaveActive() then bot:Kill() end
+	if majorStuck and GAMEMODE:GetWaveActive() and not GAMEMODE.ZombieClasses[bot:GetZombieClass()].Boss then bot:Kill() end
 
 	if aimAngle then bot:SetEyeAngles(aimAngle)	cmd:SetViewAngles(aimAngle) end
 	if forwardSpeed then cmd:SetForwardMove(forwardSpeed) end
@@ -101,7 +127,7 @@ function HANDLER.ThinkFunction(bot)
 
 	if mem.nextUpdateOffshoot and mem.nextUpdateOffshoot < CurTime() or not mem.nextUpdateOffshoot then
 		mem.nextUpdateOffshoot = CurTime() + 0.4 + math.random() * 0.2
-		bot:D3bot_UpdateAngsOffshoot(HANDLER.AngOffshoot)
+		bot:D3bot_UpdateAngsOffshoot(HANDLER.AngOffshoot * (bot:GetStatus("frightened") and math.random(1, 5) or 1))
 	end
 
 	local function pathCostFunction(node, linkedNode, link)
