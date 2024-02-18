@@ -1,7 +1,7 @@
 D3bot.Handlers.Undead_Crow = D3bot.Handlers.Undead_Crow or {}
 local HANDLER = D3bot.Handlers.Undead_Crow
 
-HANDLER.angOffshoot = 40
+HANDLER.angOffshoot = 10
 
 HANDLER.Fallback = false
 function HANDLER.SelectorFunction(zombieClassName, team)

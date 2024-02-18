@@ -58,6 +58,7 @@ function D3bot.Basics.Walk(bot, pos, aimAngle, slowdown, proximity)
 
 	-- Make bot aim straight when outside of current node area This should prevent falling down edges.
 	local aimStraight = false
+	local weapon = bot:GetActiveWeapon()
 	if D3bot.UsingSourceNav then
 		if nodeOrNil and not navmesh.GetNavArea(origin, 8) then aimStraight = true end
 	else
@@ -65,7 +66,6 @@ function D3bot.Basics.Walk(bot, pos, aimAngle, slowdown, proximity)
 	end
 	if shouldClimb then
 		---@type GWeapon|table
-		local weapon = bot:GetActiveWeapon()
 		if weapon and weapon.GetClimbing and weapon:GetClimbing() and weapon.GetClimbSurface then
 			local tr = weapon:GetClimbSurface()
 			if tr and tr.Hit then
@@ -75,19 +75,21 @@ function D3bot.Basics.Walk(bot, pos, aimAngle, slowdown, proximity)
 			bot:D3bot_AngsRotateTo(Vector(pos.x-origin.x, pos.y-origin.y, 0):Angle(), 1)
 		end
 	else
-		if mem.BarricadeAttackEntity and mem.BarricadeAttackPos and mem.BarricadeAttackEntity:IsValid() and mem.BarricadeAttackPos:DistToSqr(origin) < 100*100 then
+		if mem.BarricadeAttackEntity and mem.BarricadeAttackPos and mem.BarricadeAttackEntity:IsValid() and mem.BarricadeAttackPos:DistToSqr(origin) < (mem.SpitOnPlayer and 100000 or 10000) then
 			-- We have a barricade entity to attack, so we aim for this one.
-			offshootAngle = bot:D3bot_GetOffshoot(0.1)
+			offshootAngle = bot:D3bot_GetOffshoot(mem.SpitOnPlayer and 0 or 1)
 			aimAngle = aimAngle or (mem.BarricadeAttackPos - bot:GetShootPos()):Angle()
-			bot:D3bot_AngsRotateTo(aimAngle + offshootAngle, 0.5)
+			bot:D3bot_AngsRotateTo(aimAngle + offshootAngle, 1)
 			--ClDebugOverlay.Line(GetPlayerByName("D3"), bot:GetShootPos(), mem.BarricadeAttackPos, 1, Color(0,255,0), false)
 		else
 			-- Target is invalid or too far away, forget about it.
 			-- We will either use the given aim angle, or calculate it based on the walk position.
-			offshootAngle = bot:D3bot_GetOffshoot(aimStraight and 0 or 1)
-			aimAngle = aimAngle or (pos - origin):Angle()
-			bot:D3bot_AngsRotateTo(aimAngle + offshootAngle, aimStraight and 1 or D3bot.BotAngLerpFactor)
-			mem.BarricadeAttackPos, mem.BarricadeAttackEntity = nil, nil
+			if not mem.SpitOnPlayer then
+				offshootAngle = bot:D3bot_GetOffshoot(aimStraight and 0 or 1)
+				aimAngle = aimAngle or (pos - origin):Angle()
+				bot:D3bot_AngsRotateTo(aimAngle + offshootAngle, aimStraight and 1 or D3bot.BotAngLerpFactor)
+				mem.BarricadeAttackPos, mem.BarricadeAttackEntity = nil, nil
+			end
 		end
 	end
 
@@ -161,6 +163,7 @@ function D3bot.Basics.Walk(bot, pos, aimAngle, slowdown, proximity)
 			if shouldClimb or jumpParam == "Always" or jumpToParam == "Always" then
 				actions.Jump = true
 			end
+
 			-- If there is a JumpTo parameter with "Close" as the value, determine if we are close enough to jump.
 			if jumpToParam == "Close" and nextNodeOrNil then
 				local _, hullTop = bot:GetHull() -- Assume the hull is symmetrical.
@@ -174,6 +177,7 @@ function D3bot.Basics.Walk(bot, pos, aimAngle, slowdown, proximity)
 					actions.Jump = true
 				end
 			end
+
 			if facesHindrance then
 				if math.random(D3bot.BotJumpAntichance) == 1 then
 					actions.Jump = true
@@ -225,7 +229,13 @@ function D3bot.Basics.Walk(bot, pos, aimAngle, slowdown, proximity)
 		mem.AntiStuckCounter = nil
 	end
 
-	actions.Attack = facesHindrance and not shouldClimb -- If the bot should climb, but is using its primary attack, climing will fail.
+	if facesHindrance then
+		local choice = math.random(0, 15)
+		if choice >= 2 then actions.Attack = facesHindrance and not shouldClimb
+		elseif choice >= 6 and (weapon.BattleCryDelay or 0) <= CurTime() then actions.Reload = true
+		else if not bot:GetZombieClassTable().IsHeadcrab then actions.Attack2 = true actions.Attack = false end end
+	end
+
 	actions.Use = actions.Use or facesHindrance
 
 	if movementVector.x > 0 then actions.MoveForward = true end
@@ -291,7 +301,7 @@ function D3bot.Basics.WalkAttackAuto(bot)
 
 	---@type GWeapon|table
 	local weapon = bot:GetActiveWeapon()
-	local range = (weapon and weapon.MeleeReach or 75) + 25 -- Either MeleeReach + 25, or 100.
+	local range = (weapon and weapon.MeleeReach or 90) + 50 -- Either MeleeReach + 25, or 140.
 
 	-- We don't have a case that can be handled by the basic walk handler.
 	-- So we just attack something directly.
@@ -300,7 +310,7 @@ function D3bot.Basics.WalkAttackAuto(bot)
 	local attackPos = bot:D3bot_GetAttackPosOrNilFuture(nil, math.Rand(0, D3bot.BotAimPosVelocityOffshoot)) -- Target attack position, for aiming.
 	local movePos = attackPos or bot:GetPos() -- Target movement position.
 
-	if attackPos and attackPos:DistToSqr(origin) < math.pow(range, 2) then
+	if attackPos and attackPos:DistToSqr(origin) <= math.pow(range, 2) then
 		--ClDebugOverlay.Line(GetPlayerByName("D3"), bot:GetShootPos(), attackPos, 1, Color(255,255,0), false)
 
 		-- We are within attack range.
@@ -311,7 +321,7 @@ function D3bot.Basics.WalkAttackAuto(bot)
 	elseif mem.BarricadeAttackEntity and mem.BarricadeAttackPos then
 		-- We are not within attack range, but we have a barricade entity to attack.
 		-- So we aim for this one, instead.
-		if mem.BarricadeAttackEntity:IsValid() and mem.BarricadeAttackPos:DistToSqr(origin) < math.pow(range, 2) then
+		if mem.BarricadeAttackEntity:IsValid() and mem.BarricadeAttackPos:DistToSqr(origin) < math.pow(range, 2) and not mem.BotShouldIgnoreCade then
 			attackPos = mem.BarricadeAttackPos
 			facesTgt = true
 			--ClDebugOverlay.Line(GetPlayerByName("D3"), bot:GetShootPos(), attackPos, 1, Color(0,0,255), false)
@@ -380,6 +390,7 @@ function D3bot.Basics.WalkAttackAuto(bot)
 			if jumpParam == "Always" or jumpToParam == "Always" then
 				actions.Jump = true
 			end
+
 			-- If there is a JumpTo parameter with "Close" as the value, determine if we are close enough to jump.
 			if jumpToParam == "Close" and nextNodeOrNil then
 				local _, hullTop = bot:GetHull() -- Assume the hull is symmetrical.
@@ -393,6 +404,7 @@ function D3bot.Basics.WalkAttackAuto(bot)
 					actions.Jump = true
 				end
 			end
+
 			if facesHindrance then
 				if math.random(D3bot.BotJumpAntichance) == 1 then
 					actions.Jump = true
@@ -430,7 +442,14 @@ function D3bot.Basics.WalkAttackAuto(bot)
 		mem.AntiStuckCounter = nil
 	end
 
-	actions.Attack = facesTgt or facesHindrance
+	if facesHindrance then
+		local choice = math.random(0, 3)
+		if choice == 1 then actions.Attack = true
+		elseif choice == 3 then actions.Reload = true
+		else actions.Attack2 = true end
+	end
+
+	actions.Attack = facesTgt and not shouldClimb
 	actions.Use = actions.Use or facesHindrance
 
 	if movementVector.x > 0 then actions.MoveForward = true end
