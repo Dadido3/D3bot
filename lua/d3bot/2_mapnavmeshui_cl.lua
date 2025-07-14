@@ -76,6 +76,7 @@ return function(lib)
 		if isEnabled then
 			nodeVisualProperties = {}
 			hook.Add("Think", hooksId, function()
+				if not lib.MapNavMesh then return end
 				cursoredItemOrNil = lib.MapNavMesh:GetCursoredItemOrNil(LocalPlayer())
 				
 				local smartDraw = D3bot.Convar_Navmeshing_SmartDraw:GetBool()
@@ -112,6 +113,7 @@ return function(lib)
 				
 			end)
 			hook.Add("PostDrawOpaqueRenderables", hooksId, function(bDrawingDepth, bDrawingSkybox)
+				if not lib.MapNavMesh then return end
 				if forceDrawInSkyboxCounter > 1 then
 					forceDrawInSkybox = true
 					print("D3bot: Force drawing of navmesh in skybox, it won't draw correctly otherwise.")
@@ -434,6 +436,7 @@ return function(lib)
 				end
 			end)
 			hook.Add("HUDPaint", hooksId, function()
+				if not lib.MapNavMesh then return end
 				local smartDraw = D3bot.Convar_Navmeshing_SmartDraw:GetBool()
 				local maxDrawingDistanceSqr = math.pow(math.min(D3bot.Convar_Navmeshing_DrawDistance:GetInt(), 500), 2)
 				if maxDrawingDistanceSqr <= 0 then maxDrawingDistanceSqr = 500*500 end
